@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import sys, os, base64
+import sys, os, base64, requests
+from bs4 import BeautifulSoup
 from xbmcswift2 import Plugin
 from urlparse import urlparse
 
@@ -28,21 +29,25 @@ if REMOTE_DBG:
 
 def get_path(url):
 	u = urlparse(url)
-	return u.path
+	return u.path[1:]
 	
 def request(path = ''):
 	res = ''
 	try:
 		url = 'aHR0cDovL2JnLWdsZWRhaS50di8='
-		url = url if path == '' else : url + path
-		r = requests.get(base64.b64decode(url))
+		url = url if path == '' else url + path
+		url = base64.b64decode(url)
+		#plugin.log.info("url: " + url)
+		r = requests.get(url)
+		res = r.text
 	except Exception, er:
 		plugin.log.error(str(er))
 	return res
 
 def request_html(path):
-	html = request(path):
-	return BeautifulSoup(html.decode('utf-8', 'ignore'), 'html5lib')
+	html = request(path)
+	soup = BeautifulSoup(html.decode('utf-8', 'ignore'), 'html5lib')
+	return soup
 
 @plugin.route('/')
 def index():
@@ -50,22 +55,25 @@ def index():
 	try:
 		soup = request_html('')
 		ul = soup.find('ul', id='menu-gledaitv')
-		lis = ul.find_all('li')
+		lis = ul.findAll('li')
 		for li in lis:
-			items.append({
-				'label': li.a.get_text(),
-				'path': plugin.url_for('show_channels', url=get_path(li.a['href'])
-				})				
+			title = li.a.get_text()
+			if title != 'Начало':
+				items.append({
+					'label': title,
+					'path': plugin.url_for('show_channels', id=get_path(li.a['href']))
+				})
 	except Exception, er:
-		plugin.log.error(str(er))
+		plugin.log.error("index() " + str(er))
 	return items
 
-@plugin.route('/channel/<id>/')
+@plugin.route('/category/<id>/')
 def show_channels(id):
 	items = []
 	try:
 		soup = request_html(id)
-		divs = soup.find_all('div', class_='gallerybox')
+		divs = soup.findAll('div', class_='gallerybox')
+		plugin.log.info("found divs: " + str(len(divs)))
 		for div in divs:
 			h2 = div.find('h2')
 			title = h2.a.get_text()
@@ -79,14 +87,14 @@ def show_channels(id):
 				'is_playable' : True
 			})	
 	except Exception, er:
-		plugin.log.error(str(er))
+		plugin.log.error("show_channels("+id+") " + str(er))
 	return items
 
-@plugin.route('/stream/<id>')
+@plugin.route('/channels/<id>')
 def play_stream(id):
 	try:
 		soup = request_html(id)
-		iframes = soup.find_all('iframe')
+		iframes = soup.findAll('iframe')
 		for iframe in iframes:
 			if 'freshvideos' in iframe['href']:
 				r = requests.get(iframe['href'], headers={'referer': 'http://bg-gledai.tv/'})
@@ -96,7 +104,7 @@ def play_stream(id):
 					matches = re.compile('jwplayer:file>(.+?)<').findall(r.text)
 					plugin.setResolvedUrl(matches[0])				
 	except Exception, er:
-		plugin.log.error(str(er))
+		plugin.log.error("play_stream("+id+")" + str(er))
 
 if __name__ == '__main__':
 	plugin.run()
