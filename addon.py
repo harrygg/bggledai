@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, os, base64, requests
+import sys, os, base64, requests, re
 from bs4 import BeautifulSoup
 from xbmcswift2 import Plugin
 from urlparse import urlparse
@@ -9,7 +9,7 @@ sys.setdefaultencoding('utf8')
 plugin = Plugin('plugin.video.bggledai')
 
 #append_pydev_remote_debugger
-REMOTE_DBG = False
+REMOTE_DBG = True
 if REMOTE_DBG:
 	try:
 		sys.path.append("C:\\Software\\Java\\eclipse-luna\\plugins\\org.python.pydev_4.4.0.201510052309\\pysrc")
@@ -34,9 +34,8 @@ def get_path(url):
 def request(path = ''):
 	res = ''
 	try:
-		url = 'aHR0cDovL2JnLWdsZWRhaS50di8='
+		url = base64.b64decode('aHR0cDovL2JnLWdsZWRhaS50di8=')
 		url = url if path == '' else url + path
-		url = base64.b64decode(url)
 		#plugin.log.info("url: " + url)
 		r = requests.get(url)
 		res = r.text
@@ -56,13 +55,14 @@ def index():
 		soup = request_html('')
 		ul = soup.find('ul', id='menu-gledaitv')
 		lis = ul.findAll('li')
+		del lis[0] # Remove first link
+		
 		for li in lis:
 			title = li.a.get_text()
-			if title != 'Начало':
-				items.append({
-					'label': title,
-					'path': plugin.url_for('show_channels', id=get_path(li.a['href']))
-				})
+			items.append({
+				'label': title,
+				'path': plugin.url_for('show_channels', id=get_path(li.a['href']))
+			})
 	except Exception, er:
 		plugin.log.error("index() " + str(er))
 	return items
@@ -78,8 +78,9 @@ def show_channels(id):
 			h2 = div.find('h2')
 			title = h2.a.get_text()
 			url = get_path(h2.a['href'])
-			img = div.find('img')['href']
-
+			try: img = div.a.img['src']
+			except: img = ''
+			plugin.log.info("img.src: " + img)
 			items.append({
 				'label' : title, 
 				'path' : plugin.url_for('play_stream', id=url),
@@ -94,15 +95,18 @@ def show_channels(id):
 def play_stream(id):
 	try:
 		soup = request_html(id)
-		iframes = soup.findAll('iframe')
-		for iframe in iframes:
-			if 'freshvideos' in iframe['href']:
-				r = requests.get(iframe['href'], headers={'referer': 'http://bg-gledai.tv/'})
-				matches = re.compile('playlist: +[\'"]+(.+?)[\'"]+').findall(r.text)
-				if len(matches) > 0:
-					r = requests.get(matches[0], headers={'referer': iframe['href']})
-					matches = re.compile('jwplayer:file>(.+?)<').findall(r.text)
-					plugin.setResolvedUrl(matches[0])				
+		iframe = soup.find('iframe', src=re.compile('.+freshvideos.+'))
+		url = iframe['src']
+		
+		r = requests.get(url, headers={'referer': 'http://bg-gledai.tv/'})
+		matches = re.compile('playlist: +[\'"]+(.+?)[\'"]+').findall(r.text)
+		if len(matches) > 0:
+			u = urlparse(url)
+			pl_url = '%s://%s/%s' % (u.scheme, u.hostname, matches[0])
+			r = requests.get(pl_url, headers={'referer': url})
+			matches = re.compile('jwplayer:file>(.+?)<').findall(r.text)
+			url = matches[0]# + '|User-Agent=stagefright/1.2'
+			plugin.set_resolved_url(url)				
 	except Exception, er:
 		plugin.log.error("play_stream("+id+")" + str(er))
 
