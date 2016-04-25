@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-import sys, os, base64, xbmcgui, re
+import sys, base64, re
 from xbmcswift2 import Plugin
 from urlparse import urlparse, urljoin
-from resources.lib.grequest import GRequest
-from resources.lib.mode import *
+from resources.lib.helper import *
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -11,7 +10,7 @@ plugin = Plugin('plugin.video.bggledai')
 req = GRequest(plugin)
 url = base64.b64decode('aHR0cDovL2JnLWdsZWRhaS50di8=')
 
-@plugin.cached_route('/', None, None, 240)
+@plugin.cached_route('/')
 def index():
 	items = []
 	
@@ -19,26 +18,29 @@ def index():
 		req.Get(url)
 		el = req.soup.find(ul, id='menu-gledaitv')
 		lis = el.findAll(li)
-		del lis[0] # Remove first link
+		del lis[0] # Remove first link, add show all
+		
+		items.append({label: 'Всички', path: plugin.url_for(Mode.show_channels, id=all)})
 		
 		for l in lis:
 			items.append({
 				label: l.a.get_text(),
 				path: plugin.url_for(Mode.show_channels, id=get_path(l.a[href]))
 			})
-			
+	
 	except Exception, er:
 		plugin.log.error(er)
 	return items
 
-@plugin.cached_route('/category/<id>/', None, None, 240)
+@plugin.cached_route('/category/<id>/')
 def show_channels(id):
 	items = []
-	
+	if id == all:
+		return get_all_channels()
+		
 	try:
 		req.Get(urljoin(url, id))
 		divs = req.soup.findAll(div, class_='gallerybox')
-		
 		for d in divs:
 			heading = d.find(h2)
 			link = get_path(heading.a[href])
@@ -49,7 +51,7 @@ def show_channels(id):
 				path : plugin.url_for(Mode.play_stream, id=link),
 				icon : img,
 				is_playable : True
-			})	
+			})
 	except Exception, er:
 		plugin.log.error(er)
 	return items
@@ -87,6 +89,26 @@ def get_playlist_url(url):
 def get_path(url):
 	parsed_url = urlparse(url)
 	return parsed_url.path[1:]
+
+@plugin.cached(1440)
+def get_all_channels():
+	items = []
+	try:
+		from resources.lib.channels import channels
+		for i in range (0, len(channels)):
+			items.append({
+				label : channels[i][0], 
+				path : plugin.url_for(Mode.play_stream, id=channels[i][1]),
+				icon : urljoin(url, channels[i][2]),
+				is_playable : True
+			})
+	except Exception, er:
+		plugin.log.error(er)
+	return items
+
+def delete_cache():
+	req.DeleteCookie()
+	plugin.clear_function_cache()
 
 if __name__ == '__main__':
 	plugin.run()
