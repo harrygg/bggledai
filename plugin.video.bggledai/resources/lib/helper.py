@@ -19,18 +19,22 @@ class GRequest:
 		urllib2.install_opener(opener)
 		self.cookie_file = os.path.join(plugin.storage_path, 'coolies')
 			
-	def Get(self, url, referer=None):
+	def Get(self, url, referer=None, ua=None):
 		self.ulr = url
 		if os.path.isfile(self.cookie_file):
 			try: self.cj.load(self.cookie_file)
 			except: pass
 		
+
 		try:
 			req = urllib2.Request(url)
+			if ua == None:
+				ua = self.user_agent_pc
+			req.add_header('User-agent', ua)
 			if referer == None:
 				referer = url
 			req.add_header('Referer', referer)
-			req.add_header('User-agent', self.user_agent_desktop)
+			
 			self.plugin.log.info("GRequest class | url=" + url)
 			#try:
 			res = urllib2.urlopen(req)
@@ -55,7 +59,7 @@ class GRequest:
 		post_data = urllib.urlencode(post_data)
 		req = urllib2.Request(url, post_data)
 		req.add_header('Referer', referer)
-		req.add_header('User-agent', self.user_agent_desktop)
+		req.add_header('User-agent', self.user_agent_pc)
 		self.plugin.log.info("GRequest class | url=" + url)
 		try:
 			res = urllib2.urlopen(req)

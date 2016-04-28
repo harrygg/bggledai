@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.bggledai" name="BG Gledai" version="1.0.1" provider-name="HarryGG">
+<addon id="plugin.video.bggledai" name="BG Gledai" version="1.0.2" provider-name="HarryGG">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.xbmcswift2" version="2.4.0"/>
-    <import addon="script.module.requests" version="2.9.1"/>
 		<import addon="script.module.beautifulsoup4" version="4.3.2"/>
 		<import addon="script.module.html5lib" version="0.999.0"/>
   </requires>
@@ -17,7 +16,7 @@
 		<disclaimer lang="bg"></disclaimer>
   	<language>Bulgarian</language>
 		<platform>all</platform>
-  	<forum>https://kodibg.org/forum/</forum>
+  	<forum>https://kodibg.org/forum/forum-5.html</forum>
   	<website>https://github.com/harrygg/plugin.video.bggledai</website>
   	<email>harrygg@gmail.com</email>
   </extension>

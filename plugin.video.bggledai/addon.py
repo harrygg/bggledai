@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-import sys, base64, re
+import sys, base64, re, traceback
 from xbmcswift2 import Plugin
 from urlparse import urlparse, urljoin
 from resources.lib.helper import *
 
 reload(sys)
 sys.setdefaultencoding('utf8')
-plugin = Plugin('plugin.video.bggledai')
+plugin = Plugin('BG Gledai', 'plugin.video.bggledai')
 req = GRequest(plugin)
 url = base64.b64decode('aHR0cDovL2JnLWdsZWRhaS50di8=')
 
+	
 @plugin.cached_route('/')
 def index():
 	items = []
-	
 	try:
+	
 		req.Get(url)
 		el = req.soup.find(ul, id='menu-gledaitv')
 		lis = el.findAll(li)
@@ -29,6 +30,7 @@ def index():
 			})
 	
 	except Exception, er:
+		traceback.print_exc()
 		plugin.log.error(er)
 	return items
 
@@ -62,13 +64,15 @@ def play_stream(id):
 		main_url = urljoin(url, id)
 		req.Get(main_url)
 		iframe_url = req.soup.find(iframe, src=re.compile('.+freshvideos.+'))[src]
-	
+		plugin.log.info('iframe_url: ' + iframe_url)
 		req.Get(iframe_url, main_url)		
 		if not req.UserLogged() and not req.Login(iframe_url):
 			plugin.notify(msg=plugin.name, title='Грешка при логването', delay=10000)
 			return False
 		
 		pl_url = get_playlist_url(iframe_url)
+		plugin.log.info('Resolved m3u url: %s' % pl_url)
+		pl_url += '|User-Agent=%s' % req.user_agent_desktop
 		plugin.set_resolved_url(pl_url)
 
 	except Exception, er:
@@ -77,11 +81,17 @@ def play_stream(id):
 def get_playlist_url(url):
 	try:
 		matches = re.compile('playlist: +[\'"]+(.+?)[\'"]+').findall(req.response)
+		if len(matches) == 0:
+			plugin.log.error('Playlist source url not found!')
+			plugin.log.error(req.response)
 		u = urlparse(url)
 		pl_url = '%s://%s/%s' % (u.scheme, u.netloc, matches[0])
-		req.Get(pl_url)
+		req.Get(pl_url, url)
 		matches = re.compile('jwplayer:file>(.+?)<').findall(req.response)
-		return matches[0] + '|User-Agent=' + req.user_agent_desktop
+		if len(matches) == 0:
+			plugin.log.error('m3u url not found')
+			plugin.log.error(req.response)		
+		return matches[0]
 	except Exception, er:
 		plugin.log.error(er)
 		return ''
