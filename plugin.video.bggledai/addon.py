@@ -84,9 +84,9 @@ def get_playlist_url(url):
 		if len(matches) == 0:
 			plugin.log.error('Playlist source url not found!')
 			plugin.log.error(req.response)
-		u = urlparse(url)
-		pl_url = '%s://%s/%s' % (u.scheme, u.netloc, matches[0])
-		req.Get(pl_url, url)
+		#u = urlparse(url)
+		#pl_url = '%s://%s/%s' % (u.scheme, u.netloc, matches[0])
+		req.Get(matches[0], url)
 		matches = re.compile('jwplayer:file>(.+?)<').findall(req.response)
 		if len(matches) == 0:
 			plugin.log.error('m3u url not found')
