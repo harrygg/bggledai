@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, base64, re, traceback
+import sys, base64, re
 from xbmcswift2 import Plugin
 from urlparse import urlparse, urljoin
 from resources.lib.helper import *
@@ -30,7 +30,6 @@ def index():
 			})
 	
 	except Exception, er:
-		traceback.print_exc()
 		plugin.log.error(er)
 	return items
 
@@ -57,7 +56,7 @@ def show_channels(id):
 	except Exception, er:
 		plugin.log.error(er)
 	return items
-				
+	
 @plugin.route('/channel/<id>')
 def play_stream(id):
 	try:
@@ -72,7 +71,7 @@ def play_stream(id):
 		
 		pl_url = get_playlist_url(iframe_url)
 		plugin.log.info('Resolved m3u url: %s' % pl_url)
-		pl_url += '|User-Agent=%s' % req.user_agent_desktop
+		pl_url += '|Referer=%s' % base64.b64decode('aHR0cDovL3R2YmcudHYvd2luMzIvZmxhc2hwbGF5ZXIvandwbGF5ZXIuZmxhc2guc3dm')
 		plugin.set_resolved_url(pl_url)
 
 	except Exception, er:
@@ -84,9 +83,11 @@ def get_playlist_url(url):
 		if len(matches) == 0:
 			plugin.log.error('Playlist source url not found!')
 			plugin.log.error(req.response)
-		#u = urlparse(url)
-		#pl_url = '%s://%s/%s' % (u.scheme, u.netloc, matches[0])
-		req.Get(matches[0], url)
+		pl_url = matches[0]
+		if 'http' not in pl_url:
+			u = urlparse(url)
+			pl_url = '%s://%s/%s' % (u.scheme, u.netloc, matches[0])
+		req.Get(matches[0], pl_url)
 		matches = re.compile('jwplayer:file>(.+?)<').findall(req.response)
 		if len(matches) == 0:
 			plugin.log.error('m3u url not found')
